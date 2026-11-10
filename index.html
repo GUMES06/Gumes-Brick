@@ -1,0 +1,385 @@
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#111116">
+<title>GUMES BRICK</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#0d0d12;color:#fff;font-family:Arial,sans-serif}
+header{padding:20px;background:#17171e;border-bottom:2px solid #b91c1c}
+h1{margin:0;font-size:25px}
+h1 span{color:#ef4444}
+small,p{color:#aaa}
+nav{display:flex;gap:7px;padding:12px;overflow-x:auto}
+button{background:#b91c1c;color:white;border:0;border-radius:9px;padding:12px;cursor:pointer;font-weight:bold}
+nav button{flex:1;font-size:12px}
+main{padding:15px;max-width:850px;margin:auto}
+section{display:none}
+section.active{display:block}
+.card{background:#1b1b24;padding:17px;border-radius:13px;margin-bottom:13px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.value{font-size:24px;font-weight:bold;margin-top:10px}
+label{display:block;margin:12px 0 6px;color:#ddd}
+input,textarea,select{width:100%;padding:13px;background:#111118;color:white;border:1px solid #444;border-radius:8px;font-size:16px}
+textarea{min-height:85px}
+.full{width:100%;margin-top:15px}
+.green{color:#4ade80}
+.red{color:#f87171}
+.item{border-bottom:1px solid #333;padding:13px 0}
+.item:last-child{border:0}
+.muted{color:#aaa;font-size:13px}
+.result{background:#262630;border-radius:10px;padding:15px;margin-top:15px}
+.hidden{display:none}
+footer{text-align:center;color:#777;padding:25px;font-size:12px}
+</style>
+</head>
+<body>
+
+<header>
+<h1>GUMES <span>BRICK</span></h1>
+<small>Gestão inteligente de compra e revenda</small>
+</header>
+
+<nav>
+<button onclick="abrir('inicio')">Início</button>
+<button onclick="abrir('analise')">Analisar</button>
+<button onclick="abrir('compras')">Comprar</button>
+<button onclick="abrir('estoque')">Estoque</button>
+</nav>
+
+<main>
+
+<section id="inicio" class="active">
+<h2>📊 Painel financeiro</h2>
+<div class="grid">
+<div class="card">
+<small>Capital aplicado</small>
+<div class="value" id="investido">R$ 0</div>
+</div>
+<div class="card">
+<small>Faturamento</small>
+<div class="value" id="faturamento">R$ 0</div>
+</div>
+<div class="card">
+<small>Lucro realizado</small>
+<div class="value green" id="lucro">R$ 0</div>
+</div>
+<div class="card">
+<small>Itens em estoque</small>
+<div class="value" id="quantidade">0</div>
+</div>
+</div>
+<div class="card">
+<h3>Resumo do negócio</h3>
+<p id="resumo">Nenhuma movimentação.</p>
+</div>
+<div class="card">
+<h3>💾 Backup dos dados</h3>
+<button class="full" onclick="backup()">Exportar backup</button>
+<label>Restaurar backup JSON</label>
+<input type="file" accept=".json,application/json" onchange="restaurar(event)">
+</div>
+</section>
+
+<section id="analise">
+<h2>🔎 Analisar oportunidade</h2>
+<div class="card">
+<label>Nome do produto</label>
+<input id="nomeA" placeholder="Ex: Bicicleta aro 29">
+
+<label>Descrição e estado</label>
+<textarea id="descA" placeholder="Marca, modelo, defeitos, conservação..."></textarea>
+
+<label>Preço pedido (R$)</label>
+<input id="precoA" type="number" min="0" step=".01">
+
+<label>Preço estimado de revenda (R$)</label>
+<input id="revendaA" type="number" min="0" step=".01">
+
+<label>Gastos previstos (R$)</label>
+<input id="gastosA" type="number" min="0" step=".01" value="0">
+
+<label>Margem de lucro desejada (%)</label>
+<input id="margemA" type="number" min="0" max="90" value="30">
+
+<button class="full" onclick="analisar()">Analisar compra</button>
+<div id="resultado" class="result hidden"></div>
+</div>
+</section>
+
+<section id="compras">
+<h2>📦 Registrar compra</h2>
+<div class="card">
+<label>Produto</label>
+<input id="nomeC" placeholder="Nome e modelo">
+
+<label>Categoria</label>
+<select id="categoriaC">
+<option>Eletrônicos</option>
+<option>Celulares</option>
+<option>Eletrodomésticos</option>
+<option>Ferramentas</option>
+<option>Bicicletas</option>
+<option>Móveis</option>
+<option>Outros</option>
+</select>
+
+<label>Descrição</label>
+<textarea id="descC"></textarea>
+
+<label>Valor pago (R$)</label>
+<input id="precoC" type="number" min="0" step=".01">
+
+<label>Gastos adicionais (R$)</label>
+<input id="gastosC" type="number" min="0" step=".01" value="0">
+
+<label>Preço anunciado (R$)</label>
+<input id="anuncioC" type="number" min="0" step=".01">
+
+<button class="full" onclick="cadastrar()">Salvar produto</button>
+</div>
+</section>
+
+<section id="estoque">
+<h2>📋 Meu estoque e vendas</h2>
+<div id="lista"></div>
+</section>
+
+</main>
+
+<footer>GUMES BRICK © 2026</footer>
+
+<script>
+const chave="gumes_brick_dados_v1";
+let produtos=[];
+
+try{
+const salvo=JSON.parse(localStorage.getItem(chave)||"[]");
+if(Array.isArray(salvo))produtos=salvo;
+}catch(e){console.error(e)}
+
+const el=id=>document.getElementById(id);
+const numero=id=>Number(el(id).value)||0;
+const dinheiro=n=>Number(n).toLocaleString(
+"pt-BR",{style:"currency",currency:"BRL"}
+);
+
+function salvar(){
+localStorage.setItem(chave,JSON.stringify(produtos));
+atualizar();
+}
+
+function abrir(id){
+document.querySelectorAll("section").forEach(s=>{
+s.classList.remove("active");
+});
+el(id).classList.add("active");
+atualizar();
+}
+
+function analisar(){
+const nome=el("nomeA").value.trim();
+const desc=el("descA").value.toLowerCase();
+const compra=numero("precoA");
+const venda=numero("revendaA");
+const gastos=numero("gastosA");
+const margem=numero("margemA")/100;
+
+if(!nome||compra<=0||venda<=0||margem<0||margem>=1){
+alert("Preencha os valores corretamente.");
+return;
+}
+
+const lucro=venda-compra-gastos;
+const teto=Math.max(0,venda*(1-margem)-gastos);
+const percentual=lucro/venda*100;
+let situacao="🔴 Compra arriscada";
+
+if(lucro>0&&compra<=teto)
+situacao="🟢 Boa oportunidade";
+else if(lucro>0)
+situacao="🟡 Tente negociar";
+
+let alerta="";
+if(/defeito|quebrado|não liga|nao liga|bloqueado|sem testar|trincado/.test(desc)){
+alerta="<p class='red'>⚠️ A descrição indica possível defeito. Verifique o custo de reparo e a procedência.</p>";
+}
+
+el("resultado").classList.remove("hidden");
+el("resultado").innerHTML=`
+<h3>${situacao}</h3>
+<p>Lucro potencial: <b>${dinheiro(lucro)}</b></p>
+<p>Margem estimada: ${percentual.toFixed(1)}%</p>
+<p>Compra máxima sugerida: <b>${dinheiro(teto)}</b></p>
+<p>Preço de revenda informado: ${dinheiro(venda)}</p>
+${alerta}
+<small>Estimativa baseada nos valores digitados. Não consulta preços reais automaticamente.</small>
+`;
+}
+
+function cadastrar(){
+const nome=el("nomeC").value.trim();
+const compra=numero("precoC");
+const gastos=numero("gastosC");
+const anuncio=numero("anuncioC");
+
+if(!nome||compra<=0||gastos<0||anuncio<0){
+alert("Informe o produto e valores válidos.");
+return;
+}
+
+produtos.push({
+id:Date.now(),
+nome,
+categoria:el("categoriaC").value,
+descricao:el("descC").value,
+compra,gastos,anuncio,
+venda:0,
+status:"Estoque",
+data:new Date().toLocaleDateString("pt-BR")
+});
+
+salvar();
+["nomeC","descC","precoC","anuncioC"].forEach(id=>el(id).value="");
+el("gastosC").value="0";
+alert("Produto cadastrado!");
+abrir("estoque");
+}
+
+function vender(id){
+const p=produtos.find(x=>x.id===id);
+if(!p)return;
+
+const resposta=prompt("Valor da venda em R$:",p.anuncio);
+if(resposta===null)return;
+
+const valor=Number(resposta.replace(",","."));
+if(!Number.isFinite(valor)||valor<0){
+alert("Valor inválido.");
+return;
+}
+
+const extra=prompt("Gastos adicionais da venda em R$:","0");
+if(extra===null)return;
+const despesa=Number(extra.replace(",","."));
+if(!Number.isFinite(despesa)||despesa<0){
+alert("Gasto inválido.");
+return;
+}
+
+p.venda=valor;
+p.gastos+=despesa;
+p.status="Vendido";
+salvar();
+}
+
+function excluir(id){
+if(!confirm("Excluir este produto?"))return;
+produtos=produtos.filter(p=>p.id!==id);
+salvar();
+}
+
+function atualizar(){
+const investido=produtos.reduce((s,p)=>s+p.compra+p.gastos,0);
+const vendidos=produtos.filter(p=>p.status==="Vendido");
+const faturamento=vendidos.reduce((s,p)=>s+p.venda,0);
+const lucro=vendidos.reduce((s,p)=>s+p.venda-p.compra-p.gastos,0);
+const estoque=produtos.filter(p=>p.status==="Estoque");
+
+el("investido").textContent=dinheiro(investido);
+el("faturamento").textContent=dinheiro(faturamento);
+el("lucro").textContent=dinheiro(lucro);
+el("lucro").className="value "+(lucro>=0?"green":"red");
+el("quantidade").textContent=estoque.length;
+el("resumo").textContent=
+`${produtos.length} produtos registrados, ${vendidos.length} vendidos e ${estoque.length} aguardando venda.`;
+
+const lista=el("lista");
+lista.innerHTML="";
+
+if(!produtos.length){
+lista.textContent="Nenhum produto cadastrado.";
+return;
+}
+
+produtos.slice().reverse().forEach(p=>{
+const card=document.createElement("div");
+card.className="card";
+
+const titulo=document.createElement("h3");
+titulo.textContent=p.nome;
+card.appendChild(titulo);
+
+const info=document.createElement("p");
+info.textContent=
+`${p.categoria} | ${p.status} | ${p.data}`;
+card.appendChild(info);
+
+const detalhes=document.createElement("p");
+detalhes.textContent=
+`Compra: ${dinheiro(p.compra)} | Gastos: ${dinheiro(p.gastos)} | Anúncio: ${dinheiro(p.anuncio)}`;
+card.appendChild(detalhes);
+
+if(p.status==="Vendido"){
+const resultado=document.createElement("p");
+const ganho=p.venda-p.compra-p.gastos;
+resultado.textContent=
+`Venda: ${dinheiro(p.venda)} | Lucro: ${dinheiro(ganho)}`;
+resultado.className=ganho>=0?"green":"red";
+card.appendChild(resultado);
+}else{
+const botao=document.createElement("button");
+botao.textContent="Registrar venda";
+botao.onclick=()=>vender(p.id);
+card.appendChild(botao);
+}
+
+const apagar=document.createElement("button");
+apagar.textContent="Excluir";
+apagar.style.marginLeft="8px";
+apagar.style.background="#444";
+apagar.onclick=()=>excluir(p.id);
+card.appendChild(apagar);
+
+lista.appendChild(card);
+});
+}
+
+function backup(){
+const arquivo=new Blob(
+[JSON.stringify(produtos,null,2)],
+{type:"application/json"}
+);
+const url=URL.createObjectURL(arquivo);
+const a=document.createElement("a");
+a.href=url;
+a.download="gumes-brick-backup.json";
+a.click();
+URL.revokeObjectURL(url);
+}
+
+function restaurar(event){
+const arquivo=event.target.files[0];
+if(!arquivo)return;
+const leitor=new FileReader();
+leitor.onload=()=>{
+try{
+const dados=JSON.parse(leitor.result);
+if(!Array.isArray(dados))throw Error("Formato inválido");
+if(confirm("Substituir os dados atuais pelo backup?")){
+produtos=dados;
+salvar();
+alert("Backup restaurado!");
+}
+}catch(e){alert("Arquivo de backup inválido.");}
+};
+leitor.readAsText(arquivo);
+}
+
+atualizar();
+</script>
+</body>
+</html>
